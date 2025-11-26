@@ -1,12 +1,10 @@
 # Computer_Vision_Project
 
-# ImageRestorAItor
+# Image Restorator
 
 <div align="center">
 <img align="center" width="30%" alt="image" src="https://www.sandiego.edu/assets/global/images/logos/logo-usd.png">
 </div>
-
-# Multi-Agent Financial Advisor
 
 ![](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![](https://img.shields.io/badge/MSAAI-CV-blue?style=for-the-badge)
