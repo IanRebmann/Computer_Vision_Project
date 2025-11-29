@@ -2,13 +2,14 @@
 # https://colab.research.google.com/drive/1JYbSLtDuFSw2NYe-YW-kZHLNkt4-v7jd#scrollTo=MAIfEjICqnXV
 
 from model import UNet
-from colorization_utils import load_image, denormalize_ab
+from colorization_utils import image_preprocessing, denormalize_ab, load_image
 from colorization_model import weights_path
 from safetensors.torch import load_file
 import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+# we are loading a pretrained model, so first we spawn the architecture and then load the weights.
 model = UNet().to(DEVICE)
 state_dict = load_file(weights_path)
 model.load_state_dict(state_dict)
@@ -20,9 +21,15 @@ from kornia.color import lab_to_rgb
 import matplotlib.pyplot as plt
 
 # If the path is '/content/image.jpg', just write 'image.jpg' as the input
-img_file = "/home/alberto/Documents/MSAAI/CV/final_project/Computer_Vision_Project/carlos/test.jpg"
+img_file = "/home/alberto/Documents/MSAAI/CV/final_project/Computer_Vision_Project/carlos/test_2.jpg"
 
-L, L_normalized = load_image(img_file)
+#L, L_normalized = load_image(img_file)
+
+#print(f"Experimental L Normalized: {L_normalized}")
+
+L, L_normalized = image_preprocessing(img_file)
+
+print(f"New L Normalized: {L_normalized}\n")
 
 with torch.no_grad():
     ab_pred = model(L_normalized)
