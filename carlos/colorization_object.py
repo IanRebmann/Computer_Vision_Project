@@ -1,52 +1,51 @@
 # https://huggingface.co/ayushshah/imagecolorization
 # https://colab.research.google.com/drive/1JYbSLtDuFSw2NYe-YW-kZHLNkt4-v7jd#scrollTo=MAIfEjICqnXV
+import cv2
 
 from model import UNet
-from colorization_utils import image_preprocessing, denormalize_ab, load_image
-from colorization_model import weights_path
+from colorization_utils import image_preprocessing, denormalize_ab
+from colorization_model import colorization_execute
 from safetensors.torch import load_file
 import torch
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+def model_init(state_dict):
+    try:
+        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# we are loading a pretrained model, so first we spawn the architecture and then load the weights.
-model = UNet().to(DEVICE)
-state_dict = load_file(weights_path)
-model.load_state_dict(state_dict)
-_ = model.eval()
+        model = UNet().to(DEVICE)
+        model.load_state_dict(state_dict)
+        _ = model.eval()
+        return model
+    except Exception as e:
+        print(f"Error during model initialization {e}.")
 
-# Note: Upload the image file to the '/contents/' directory from the left sidebar
+class ColorizationModel():
+    def __init__(
+            self,
+    ):
+        self.weights_init = colorization_execute()
+        self.state_dict = load_file(self.weights_init)
+        self.l_model = model_init(self.state_dict)
 
-from kornia.color import lab_to_rgb
-import matplotlib.pyplot as plt
+    def colorize(self, image):
+        try:
+            L, L_normalized = image_preprocessing(image)
 
-# If the path is '/content/image.jpg', just write 'image.jpg' as the input
-img_file = "/home/alberto/Documents/MSAAI/CV/final_project/Computer_Vision_Project/carlos/test_2.jpg"
+            with torch.no_grad():
+                ab_pred = self.l_model(L_normalized)
 
-#L, L_normalized = load_image(img_file)
+            ab = denormalize_ab(ab_pred)
+            lab = torch.cat((L, ab), dim=1)
 
-#print(f"Experimental L Normalized: {L_normalized}")
+            # Convert LAB back to RGB
+            lab_t = lab.permute(0, 2, 3, 1)
+            image_lab = lab_t[0].numpy()
+            lab_image = cv2.cvtColor(image_lab, cv2.COLOR_LAB2BGR)
+            return lab_image
+        except Exception as e:
+            print(f"Error during image colorization {e}.")
 
-L, L_normalized = image_preprocessing(img_file)
-
-print(f"New L Normalized: {L_normalized}\n")
-
-with torch.no_grad():
-    ab_pred = model(L_normalized)
-
-ab = denormalize_ab(ab_pred)
-lab = torch.cat((L, ab), dim=1)
-rgb = lab_to_rgb(lab)
-
-# Show L image and colorized rgb
-fig, axes = plt.subplots(1, 2)
-axes[0].imshow(L[0, 0].cpu().numpy(), cmap='gray', aspect='equal')
-axes[0].set_title('Input')
-axes[0].axis('off')
-axes[1].imshow(rgb[0].permute(1, 2, 0).cpu().numpy(), aspect='equal')
-axes[1].set_title('Prediction')
-axes[1].axis('off')
-
-plt.subplots_adjust(wspace=0, hspace=0, left=0.129)
-plt.show()
-
+    def display(self, image):
+        window_name = 'colorized'
+        cv2.imshow(window_name, image)
+        cv2.waitKey(0)
