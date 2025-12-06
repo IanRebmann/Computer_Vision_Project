@@ -1,0 +1,42 @@
+device: "cuda"   # or "cpu"
+
+models:
+  # Super-resolution (Transformers) - good general-purpose baseline
+  superres_model_id: "caidas/swin2SR-classical-sr-x2-64"
+
+  # Inpainting (Diffusers) - you can swap this with your preferred model
+  inpaint_model_id: "stable-diffusion-v1-5/stable-diffusion-inpainting"
+
+  # Denoise + Colorize are implemented as SD img2img baselines by default
+  # You can replace with specialized models later.
+  img2img_model_id: "runwayml/stable-diffusion-v1-5"
+
+  # path to your saved LoRA folder; "" to disable
+  inpaint_lora_dir: "lora_inpainting"  
+
+runtime:
+  mixed_precision: "fp16"  # "no" on CPU
+  seed: 42
+  device: "cuda"
+
+
+defaults:
+  denoise:
+    strength: 0.25
+    guidance_scale: 5.0
+    prompt: "clean, high quality photo"
+    negative_prompt: "blurry, noisy, artifacts"
+
+  colorize:
+    strength: 0.35
+    guidance_scale: 6.0
+    prompt: "natural color photo, realistic colors"
+    negative_prompt: "oversaturated, unnatural colors, artifacts"
+
+  inpaint:
+    guidance_scale: 7.0
+    num_inference_steps: 25
+    lora_scale: 0.7
+
+  superres:
+    scale: 2
