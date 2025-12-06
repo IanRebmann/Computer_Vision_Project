@@ -29,8 +29,8 @@ class ImageEnhancer:
         if torch.cuda.is_available():
             print(f"[Enhancer] gpu={torch.cuda.get_device_name(0)}")
 
-        with timed("Init Swin2SRPipeline"):
-            self.superres = Swin2SRPipeline(cfg.models["superres_model_id"], device=device)
+        #with timed("Init Swin2SRPipeline"):
+        #    self.superres = Swin2SRPipeline(cfg.models["superres_model_id"], device=device)
 
         with timed("Init SD Inpaint Pipeline (with optional LoRA)"):
             self.inpaint = SDInpaintPipeline(
@@ -40,15 +40,15 @@ class ImageEnhancer:
                 lora_dir=cfg.models.get("inpaint_lora_dir", None),
             )
 
-        with timed("Init SD Denoise Img2Img Pipeline"):
-            self.denoise = SDDenoiseImg2ImgPipeline(
-                cfg.models["img2img_model_id"], device=device, mixed_precision=mp
-            )
+        #with timed("Init SD Denoise Img2Img Pipeline"):
+        #    self.denoise = SDDenoiseImg2ImgPipeline(
+        #        cfg.models["img2img_model_id"], device=device, mixed_precision=mp
+        #    )
 
-        with timed("Init SD Colorize Img2Img Pipeline"):
-            self.colorize = SDColorizeImg2ImgPipeline(
-                cfg.models["img2img_model_id"], device=device, mixed_precision=mp
-            )
+        #with timed("Init SD Colorize Img2Img Pipeline"):
+        #    self.colorize = SDColorizeImg2ImgPipeline(
+        #        cfg.models["img2img_model_id"], device=device, mixed_precision=mp
+        #    )
 
         # Optional: warm-up to avoid first-click lag
         if str(device).startswith("cuda"):
@@ -75,8 +75,9 @@ class ImageEnhancer:
         defaults = self.cfg.defaults.get("inpaint", {})
         params = {**defaults, **kwargs}
         params.pop("strength", None)  # defensive
-        with timed("Inpaint inference"):
-            return self.inpaint(image=image, mask=mask, **params).image
+        print("[Inpaint] run_inpaint params:", params)
+        #with timed("Inpaint inference"):
+        return self.inpaint(image=image, mask=mask, **params).image
         
     def run_all_optional(
         self,
