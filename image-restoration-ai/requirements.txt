@@ -1,0 +1,16 @@
+torch>=2.1
+torchvision
+transformers>=4.40
+diffusers>=0.25
+accelerate>=0.25
+datasets>=2.18
+pillow
+opencv-python
+numpy
+pyyaml
+tqdm
+scikit-image
+
+# UI options
+gradio>=4.0
+flask>=3.0
