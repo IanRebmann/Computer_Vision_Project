@@ -7,6 +7,7 @@ do_rescale=False
 with gr.Blocks(title="Image Restoration") as demo:
     gr.Markdown("<center><h1>Image restoration.</h1></center>")
     with gr.Row():
+
         with gr.Column(scale=5):
             gr.Markdown("Greetings! Please upload your image.")
         with gr.Column(scale=1):
