@@ -32,7 +32,7 @@ FULL_W = 480        # full input objects display size
 
 def make_faded_background(img: Image.Image, fade=0.55):
     """
-    Create a lighter/faded background so strokes stand out.
+    Create a lighter/faded background so white strokes stand out.
     fade=0.55 means 55% original + 45% white.
     """
     if img is None:
@@ -178,7 +178,11 @@ def maybe_warmup_superres():
         return
     try:
         img = Image.new("RGB", (128, 128), "gray")
-        enhancer.run_superres(img, mode="Crystal clear (pretrained)")
+        # Only warm up if your Swin2SRPipeline supports mode param
+        try:
+            enhancer.run_superres(img, mode="Crystal clear (pretrained)")
+        except TypeError:
+            enhancer.run_superres(img)
         if torch.cuda.is_available():
             torch.cuda.synchronize()
     except Exception:
@@ -210,27 +214,44 @@ task = st.radio(
     horizontal=True
 )
 
+
 # -----------------------------
 # Inputs row
 # -----------------------------
 
-col_img, col_mask = st.columns([1, 1])
+col_img, col_right = st.columns([1, 1])
 
 with col_img:
     img_file = st.file_uploader("Input Image", type=["png", "jpg", "jpeg"])
 
-with col_mask:
-    # Only relevant primarily for inpaint
-    mask_source = st.radio("Mask Source", ["draw", "upload"], horizontal=True)
-    invert_mask = st.checkbox("Invert Mask", value=False)
-
-    mask_file = None
-    if mask_source == "upload":
-        mask_file = st.file_uploader("Upload Mask (optional)", type=["png", "jpg", "jpeg"])
-
-
-# Load PIL images
+# Load image early
 image = Image.open(img_file).convert("RGB") if img_file else None
+
+
+# --- Safe defaults (important when mask UI is hidden) ---
+mask_source = "draw"
+invert_mask = False
+mask_file = None
+mask_upload = None
+drawn_mask = None
+
+
+# Right column content depends on task
+with col_right:
+    if task == "inpaint":
+        mask_source = st.radio("Mask Source", ["draw", "upload"], horizontal=True)
+        invert_mask = st.checkbox("Invert Mask", value=False)
+
+        if mask_source == "upload":
+            mask_file = st.file_uploader("Upload Mask (optional)", type=["png", "jpg", "jpeg"])
+    elif task == "superres":
+        st.info("No mask needed for super-resolution.")
+    elif task == "denoise":
+        st.info("No mask needed for denoising.")
+    elif task == "colorize":
+        st.info("No mask needed for colorization.")
+
+# Load uploaded mask if any
 mask_upload = Image.open(mask_file) if mask_file else None
 
 
@@ -249,10 +270,10 @@ if task == "superres":
 
 
 # -----------------------------
-# Standard-sized previews
+# Standard-sized previews (image always, mask only when inpaint)
 # -----------------------------
 
-st.subheader("Input & Mask Previews (standard-sized)")
+st.subheader("Input Previews (standard-sized)")
 
 p1, p2 = st.columns(2)
 
@@ -267,100 +288,101 @@ with p1:
         st.write("No image loaded.")
 
 with p2:
-    if mask_upload is not None:
+    if task == "inpaint":
+        if mask_upload is not None:
+            st.image(
+                resize_for_preview(mask_upload),
+                caption="Uploaded mask preview",
+                width=PREVIEW_W
+            )
+        else:
+            st.write("No uploaded mask.")
+    else:
+        st.write("Mask preview hidden (not in inpaint mode).")
+
+
+# -----------------------------
+# Brush + draw canvas (ONLY in inpaint)
+# -----------------------------
+
+if task == "inpaint":
+    st.subheader("Brush Settings")
+
+    b1, b2, b3 = st.columns([1, 1, 1])
+
+    with b1:
+        brush_size = st.slider("Brush size", 1, 80, 20, 1)
+
+    with b2:
+        brush_color = st.color_picker("Brush color", "#FFFFFF")
+
+    with b3:
+        brush_opacity = st.slider("Brush opacity", 0.1, 1.0, 1.0, 0.05)
+
+    stroke_rgba = rgba_from_hex(brush_color, brush_opacity)
+
+    # -----------------------------
+    # Draw mask section
+    # Canvas on its own row, sized to the image
+    # -----------------------------
+    if image is not None and mask_source == "draw":
+        st.subheader("Draw Mask (full image size)")
+
+        w, h = image.size
+        faded = make_faded_background(image)
+
+        canvas_result = st_canvas(
+            fill_color="rgba(255,255,255,0)",   # transparent fill
+            stroke_width=int(brush_size),
+            stroke_color=stroke_rgba,
+            background_image=faded,             # assuming your community fix works
+            update_streamlit=True,
+            height=h,
+            width=w,
+            drawing_mode="freedraw",
+            key="mask_canvas",
+        )
+
+        if canvas_result.image_data is not None:
+            m_full = mask_from_canvas_rgba(canvas_result.image_data.astype(np.uint8))
+            if m_full is not None:
+                drawn_mask = normalize_mask(m_full, image.size)
+
+
+# -----------------------------
+# Mask preview (ONLY in inpaint)
+# -----------------------------
+
+if task == "inpaint":
+    st.subheader("Mask Preview (final binary)")
+
+    preview_btn = st.button("Update Mask Preview")
+
+    if "mask_preview" not in st.session_state:
+        st.session_state["mask_preview"] = None
+
+    if preview_btn and image is not None:
+        m = get_active_mask(
+            image=image,
+            mask_source=mask_source,
+            mask_upload=mask_upload,
+            drawn_mask=drawn_mask,
+            invert=invert_mask
+        )
+        if m is None:
+            m = Image.new("L", image.size, 0)
+        st.session_state["mask_preview"] = m
+
+    if image is not None:
+        show_mask = st.session_state["mask_preview"]
+        if show_mask is None:
+            show_mask = Image.new("L", image.size, 0)
+
         st.image(
-            resize_for_preview(mask_upload),
-            caption="Uploaded mask preview",
+            resize_for_preview(show_mask),
+            caption="Final mask preview (standard-sized)",
             width=PREVIEW_W
         )
-    else:
-        st.write("No uploaded mask.")
-
-
-# -----------------------------
-# Brush controls (for draw mode)
-# -----------------------------
-
-st.subheader("Brush Settings")
-
-b1, b2, b3 = st.columns([1, 1, 1])
-
-with b1:
-    brush_size = st.slider("Brush size", 1, 80, 20, 1)
-
-with b2:
-    brush_color = st.color_picker("Brush color", "#FFFFFF")
-
-with b3:
-    brush_opacity = st.slider("Brush opacity", 0.1, 1.0, 1.0, 0.05)
-
-stroke_rgba = rgba_from_hex(brush_color, brush_opacity)
-
-
-# -----------------------------
-# Draw mask section
-# Canvas on its own row, sized to the image
-# -----------------------------
-
-drawn_mask = None
-
-if image is not None and mask_source == "draw":
-    st.subheader("Draw Mask (full image size)")
-
-    w, h = image.size
-    faded = make_faded_background(image)
-
-    canvas_result = st_canvas(
-        fill_color="rgba(255,255,255,0)",   # transparent fill
-        stroke_width=int(brush_size),
-        stroke_color=stroke_rgba,
-        background_image=faded,             # assuming your community fix works
-        update_streamlit=True,
-        height=h,
-        width=w,
-        drawing_mode="freedraw",
-        key="mask_canvas",
-    )
-
-    if canvas_result.image_data is not None:
-        m_full = mask_from_canvas_rgba(canvas_result.image_data.astype(np.uint8))
-        if m_full is not None:
-            drawn_mask = normalize_mask(m_full, image.size)
-
-
-# -----------------------------
-# Mask preview (final binary)
-# -----------------------------
-
-st.subheader("Mask Preview (final binary)")
-
-preview_btn = st.button("Update Mask Preview")
-
-if "mask_preview" not in st.session_state:
-    st.session_state["mask_preview"] = None
-
-if preview_btn and image is not None:
-    m = get_active_mask(
-        image=image,
-        mask_source=mask_source,
-        mask_upload=mask_upload,
-        drawn_mask=drawn_mask,
-        invert=invert_mask
-    )
-    if m is None:
-        m = Image.new("L", image.size, 0)
-    st.session_state["mask_preview"] = m
-
-if image is not None:
-    show_mask = st.session_state["mask_preview"]
-    if show_mask is None:
-        show_mask = Image.new("L", image.size, 0)
-
-    st.image(
-        resize_for_preview(show_mask),
-        caption="Final mask preview (standard-sized)",
-        width=PREVIEW_W
-    )
 
 
 # -----------------------------
@@ -426,7 +448,11 @@ if run_btn:
     # --- SUPER-RESOLUTION ---
     if task == "superres":
         with st.spinner("Running Swin2SR x4..."):
-            out = enhancer.run_superres(image, mode=superres_mode)
+            try:
+                out = enhancer.run_superres(image, mode=superres_mode)
+            except TypeError:
+                # backward-compatible if your pipeline doesn't accept mode yet
+                out = enhancer.run_superres(image)
 
         st.subheader("Output (Super-Resolution x4)")
         st.image(out, width=OUTPUT_W)
@@ -458,14 +484,17 @@ if run_btn:
         st.subheader("Output (Inpainting)")
         st.image(out, width=OUTPUT_W)
 
-    # --- Others (placeholders if you want to wire later) ---
+    # --- Others (placeholders) ---
     elif task == "denoise":
         st.info("Denoise is not wired in this UI block yet.")
         st.image(image, caption="Input", width=FULL_W)
 
+    # --- COLORIZE ---
     elif task == "colorize":
-        st.info("Colorize is not wired in this UI block yet.")
-        st.image(image, caption="Input", width=FULL_W)
+        with st.spinner("Running colorization..."):
+            out = enhancer.run_colorize(image)
+        st.subheader("Output")
+        st.image(out, width=512)
 
 
 # -----------------------------
@@ -484,12 +513,15 @@ with c1:
         st.write("No image loaded.")
 
 with c2:
-    if mask_upload is not None:
-        st.image(mask_upload, caption=f"Uploaded mask: {mask_upload.size}", width=FULL_W)
-    elif drawn_mask is not None:
-        st.image(drawn_mask, caption=f"Drawn mask: {drawn_mask.size}", width=FULL_W)
+    if task == "inpaint":
+        if mask_upload is not None:
+            st.image(mask_upload, caption=f"Uploaded mask: {mask_upload.size}", width=FULL_W)
+        elif drawn_mask is not None:
+            st.image(drawn_mask, caption=f"Drawn mask: {drawn_mask.size}", width=FULL_W)
+        else:
+            st.write("No mask loaded/drawn yet.")
     else:
-        st.write("No mask loaded/drawn yet.")
+        st.write("Mask display hidden (not in inpaint mode).")
 
 
 # -----------------------------
@@ -497,7 +529,7 @@ with c2:
 # -----------------------------
 
 with st.expander("Debug / Utilities", expanded=False):
-    st.write("Device:", cfg.device)
+    st.write("Device:", getattr(cfg, "device", "unknown"))
     st.write("CUDA available:", torch.cuda.is_available())
     if torch.cuda.is_available():
         st.write("GPU:", torch.cuda.get_device_name(0))

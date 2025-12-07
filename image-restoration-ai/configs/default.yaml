@@ -16,6 +16,8 @@ models:
   # path to your saved LoRA folder; "" to disable
   inpaint_lora_dir: "lora_inpainting"  
 
+  colorize_repo_id: "ayushshah/imagecolorization"
+
 runtime:
   mixed_precision: "fp16"  # "no" on CPU
   seed: 42
@@ -32,10 +34,7 @@ defaults:
     negative_prompt: "blurry, noisy, artifacts"
 
   colorize:
-    strength: 0.35
-    guidance_scale: 6.0
-    prompt: "natural color photo, realistic colors"
-    negative_prompt: "oversaturated, unnatural colors, artifacts"
+    prompt: ""
 
   inpaint:
     guidance_scale: 7.0

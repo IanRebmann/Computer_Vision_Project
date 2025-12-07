@@ -6,7 +6,7 @@ from .config import AppConfig
 from .pipelines.superres import Swin2SRPipeline
 from .pipelines.inpaint import SDInpaintPipeline
 from .pipelines.denoise import SDDenoiseImg2ImgPipeline
-from .pipelines.colorize import SDColorizeImg2ImgPipeline
+from .pipelines.colorize.colorize import UNetColorizationPipeline
 from .utils.timing import timed
 
 @dataclass
@@ -50,10 +50,12 @@ class ImageEnhancer:
         #        cfg.models["img2img_model_id"], device=device, mixed_precision=mp
         #    )
 
-        #with timed("Init SD Colorize Img2Img Pipeline"):
-        #    self.colorize = SDColorizeImg2ImgPipeline(
-        #        cfg.models["img2img_model_id"], device=device, mixed_precision=mp
-        #    )
+        with timed("Init UNet Colorize Pipeline"):
+            self.colorize = UNetColorizationPipeline(
+                repo_id=cfg.models.get("colorize_repo_id", "ayushshah/imagecolorization"),
+                weights_path=cfg.models.get("colorize_weights_path", None),
+                device=device,
+            )
 
         # Optional: warm-up to avoid first-click lag
         if str(device).startswith("cuda"):
@@ -76,7 +78,7 @@ class ImageEnhancer:
         defaults = self.cfg.defaults.get("colorize", {})
         params = {**defaults, **kwargs}
         with timed("Colorize inference"):
-            return self.colorize(image=image, **params).image
+            return self.colorize(image=image, **kwargs).image
 
     def run_inpaint(self, image, mask, **kwargs):
         defaults = self.cfg.defaults.get("inpaint", {})
