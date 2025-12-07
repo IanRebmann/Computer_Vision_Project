@@ -4,9 +4,6 @@ import numpy as np
 import torch
 from PIL import Image
 
-W = 224
-H = 224
-
 def _to_rgb_np(image) -> np.ndarray:
     if isinstance(image, Image.Image):
         return np.array(image.convert("RGB"))
@@ -23,7 +20,20 @@ def image_preprocessing(image, device: str):
     """
     img = _to_rgb_np(image)
 
-    img = cv2.resize(img, (W, H), interpolation=cv2.INTER_CUBIC)
+    #W = 224
+    #H = 224
+
+    h = image.shape[0]
+    w = image.shape[1]
+
+    module_h = h // 224
+    h = int((224 * module_h))
+    module_w = w // 224
+    w = int((224 * module_w))
+
+    img = cv2.resize(img, (w, h), interpolation=cv2.INTER_CUBIC)
+
+    #img = cv2.resize(img, (W, H), interpolation=cv2.INTER_CUBIC)
     img = img.astype("float32") / 255.0
 
     lab_image = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
