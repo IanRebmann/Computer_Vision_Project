@@ -78,7 +78,7 @@ class ImageEnhancer:
         defaults = self.cfg.defaults.get("colorize", {})
         params = {**defaults, **kwargs}
         with timed("Colorize inference"):
-            return self.colorize(image=image, **kwargs).image
+            return self.colorize(image=image, **params).image
 
     def run_inpaint(self, image, mask, **kwargs):
         defaults = self.cfg.defaults.get("inpaint", {})

@@ -42,30 +42,27 @@ class UNetColorizationPipeline:
         self.model.eval()
 
     @torch.no_grad()
-    def __call__(self, image: Image.Image, **kwargs) -> ColorizeResult:
-        """
-        kwargs ignored for compatibility with your enhancer signature.
-        """
-        if image is None:
-            raise ValueError("Image is required for colorization.")
-
-        # Ensure RGB input for preprocessing
+    def __call__(self, image: Image.Image, **kwargs):
+        # Ensure RGB input
         image = image.convert("RGB")
 
-        L, L_norm = image_preprocessing(image, device=self.device)
+        # ✅ Convert PIL -> numpy RGB
+        image_np = np.array(image)
+
+        # Now preprocessing expects numpy
+        L, L_norm = image_preprocessing(image_np, device=self.device)
 
         ab_pred = self.model(L_norm)
         ab = denormalize_ab(ab_pred)
 
         lab = torch.cat((L, ab), dim=1)
+        lab = lab.permute(0, 2, 3, 1)
 
-        # LAB -> RGB
-        lab_t = lab.permute(0, 2, 3, 1)[0].detach().cpu().numpy().astype(np.float32)
-        rgb = cv2.cvtColor(lab_t, cv2.COLOR_LAB2RGB)
+        image_lab = lab[0].detach().cpu().numpy()
+        rgb = cv2.cvtColor(image_lab, cv2.COLOR_LAB2RGB)
 
-        # rgb is float-like in [0,1] domain depending on OpenCV path;
-        # enforce uint8 safely
-        rgb = np.clip(rgb * 255.0, 0, 255).astype(np.uint8) if rgb.max() <= 1.5 else np.clip(rgb, 0, 255).astype(np.uint8)
+        # ✅ Convert to PIL
+        rgb_u8 = np.clip(rgb * 255 if rgb.max() <= 1.0 else rgb, 0, 255).astype(np.uint8)
+        out = Image.fromarray(rgb_u8)
 
-        out = Image.fromarray(rgb, mode="RGB")
         return ColorizeResult(image=out)
