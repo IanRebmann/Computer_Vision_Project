@@ -29,8 +29,13 @@ class ImageEnhancer:
         if torch.cuda.is_available():
             print(f"[Enhancer] gpu={torch.cuda.get_device_name(0)}")
 
-        #with timed("Init Swin2SRPipeline"):
-        #    self.superres = Swin2SRPipeline(cfg.models["superres_model_id"], device=device)
+        with timed("Init Swin2SR superres Pipeline (with two-mode)"):
+            self.superres = Swin2SRPipeline(
+                pretrained_id=cfg.models["superres_pretrained_id"],
+                finetuned_id=cfg.models["superres_finetuned_id"],
+                device=device,
+                mixed_precision=mp,
+            )
 
         with timed("Init SD Inpaint Pipeline (with optional LoRA)"):
             self.inpaint = SDInpaintPipeline(
@@ -61,9 +66,11 @@ class ImageEnhancer:
         with timed("Denoise inference"):
             return self.denoise(image=image, **params).image
 
-    def run_superres(self, image: Image.Image, **kwargs) -> Image.Image:
-        with timed("Super-res inference"):
-            return self.superres(image).image
+    def run_superres(self, image: Image.Image, mode: str | None = None, **kwargs) -> Image.Image:
+        defaults = self.cfg.defaults.get("superres", {})
+        if mode is None:
+            mode = defaults.get("mode", "Crystal clear (pretrained)")
+        return self.superres(image=image, mode=mode).image
 
     def run_colorize(self, image: Image.Image, **kwargs) -> Image.Image:
         defaults = self.cfg.defaults.get("colorize", {})
@@ -87,6 +94,7 @@ class ImageEnhancer:
         do_colorize=False,
         do_inpaint=False,
         mask: Image.Image | None = None,
+        superres_mode: str | None = None,
         **kwargs
     ) -> EnhanceOutputs:
         out = EnhanceOutputs()
@@ -100,7 +108,7 @@ class ImageEnhancer:
             current = out.colorized = self.run_colorize(current, **kwargs)
 
         if do_superres:
-            current = out.superres = self.run_superres(current, **kwargs)
+            current = out.superres = self.run_superres(current, mode=superres_mode)
 
         if do_inpaint:
             if mask is None:

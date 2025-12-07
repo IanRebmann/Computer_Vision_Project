@@ -47,6 +47,12 @@ class SDInpaintPipeline:
                 model_id,
                 torch_dtype=dtype,
                 token=token,
+
+                # ✅ prevent meta-tensor init path
+                low_cpu_mem_usage=False,
+
+                # optional but can reduce weirdness
+                device_map=None,
             )
 
         with timed("Move inpaint pipeline to device"):

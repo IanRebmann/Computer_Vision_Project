@@ -2,7 +2,9 @@ device: "cuda"   # or "cpu"
 
 models:
   # Super-resolution (Transformers) - good general-purpose baseline
-  superres_model_id: "caidas/swin2SR-classical-sr-x2-64"
+  # Super-resolution Swin2SR
+  superres_pretrained_id: "caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr"
+  superres_finetuned_id: "swin2sr_div2k_finetuned_x4_1000steps"
 
   # Inpainting (Diffusers) - you can swap this with your preferred model
   inpaint_model_id: "stable-diffusion-v1-5/stable-diffusion-inpainting"
@@ -21,6 +23,8 @@ runtime:
 
 
 defaults:
+  superres:
+    mode: "Crystal clear (pretrained)"
   denoise:
     strength: 0.25
     guidance_scale: 5.0
@@ -40,3 +44,5 @@ defaults:
 
   superres:
     scale: 2
+
+
