@@ -1,32 +1,24 @@
 device: "cuda"   # or "cpu"
 
 models:
-  # Super-resolution (Transformers) - good general-purpose baseline
-  # Super-resolution Swin2SR
   superres_pretrained_id: "caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr"
   superres_finetuned_id: "swin2sr_div2k_finetuned_x4_1000steps"
 
-  # Inpainting (Diffusers) - you can swap this with your preferred model
   inpaint_model_id: "stable-diffusion-v1-5/stable-diffusion-inpainting"
-
-  # Denoise + Colorize are implemented as SD img2img baselines by default
-  # You can replace with specialized models later.
   img2img_model_id: "runwayml/stable-diffusion-v1-5"
 
-  # path to your saved LoRA folder; "" to disable
-  inpaint_lora_dir: "lora_inpainting"  
-
+  inpaint_lora_dir: "lora_inpainting"
   colorize_repo_id: "ayushshah/imagecolorization"
 
 runtime:
-  mixed_precision: "fp16"  # "no" on CPU
+  mixed_precision: "fp16"
   seed: 42
-  device: "cuda"
-
 
 defaults:
   superres:
     mode: "Crystal clear (pretrained)"
+    #scale: 2   # only keep if your Swin2SRPipeline actually uses it
+
   denoise:
     strength: 0.25
     guidance_scale: 5.0
@@ -40,8 +32,3 @@ defaults:
     guidance_scale: 7.0
     num_inference_steps: 25
     lora_scale: 0.7
-
-  superres:
-    scale: 2
-
-

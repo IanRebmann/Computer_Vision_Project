@@ -514,8 +514,10 @@ if run_btn:
         st.image(out, caption="Inpainting result", width=OUTPUT_W)
 
     elif task == "denoise":
-        st.info("Denoise is not wired in this UI block yet.")
-        st.image(image, caption="Input", width=FULL_W)
+        with st.spinner("Running denoise..."):
+            denoise_kwargs = {**base_kwargs, "strength": float(strength)}
+            out = enhancer.run_denoise(image, **denoise_kwargs)
+        st.image(out, caption=f"Denoise {strength}", width=FULL_W)
 
     elif task == "colorize":
         with st.spinner("Running colorization..."):

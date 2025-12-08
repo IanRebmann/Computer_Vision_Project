@@ -7,9 +7,11 @@ try:
 except Exception:
     StableDiffusionImg2ImgPipeline = None
 
+
 @dataclass
 class DenoiseResult:
     image: Image.Image
+
 
 class SDDenoiseImg2ImgPipeline:
     def __init__(self, model_id: str, device: str = "cpu", mixed_precision: str = "no"):
@@ -17,9 +19,25 @@ class SDDenoiseImg2ImgPipeline:
             raise ImportError("diffusers is not available or failed to import.")
 
         dtype = torch.float16 if (device.startswith("cuda") and mixed_precision == "fp16") else torch.float32
-        self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id, torch_dtype=dtype)
+
+        self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+            model_id,
+            torch_dtype=dtype,
+        )
         self.pipe.to(device)
         self.device = device
+
+        # Optional local-only choice:
+        try:
+            self.pipe.safety_checker = None
+        except Exception:
+            pass
+
+        # Memory helpers
+        try:
+            self.pipe.enable_attention_slicing()
+        except Exception:
+            pass
 
         if device.startswith("cuda"):
             try:
@@ -38,17 +56,21 @@ class SDDenoiseImg2ImgPipeline:
         num_inference_steps: int = 20,
         seed: int | None = None,
     ) -> DenoiseResult:
+
+        image = image.convert("RGB")
+        negative_prompt = negative_prompt or ""
+
         generator = None
         if seed is not None:
-            generator = torch.Generator(device=self.device).manual_seed(seed)
+            generator = torch.Generator(device=self.device).manual_seed(int(seed))
 
         out = self.pipe(
-            prompt=prompt,
-            negative_prompt=negative_prompt or None,
+            prompt=prompt or "clean, realistic photo, no text, no watermark",
+            negative_prompt=negative_prompt,
             image=image,
-            strength=strength,
-            guidance_scale=guidance_scale,
-            num_inference_steps=num_inference_steps,
+            strength=float(strength),
+            guidance_scale=float(guidance_scale),
+            num_inference_steps=int(num_inference_steps),
             generator=generator,
         )
         return DenoiseResult(image=out.images[0])

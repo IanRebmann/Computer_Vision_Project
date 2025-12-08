@@ -45,10 +45,10 @@ class ImageEnhancer:
                 lora_dir=cfg.models.get("inpaint_lora_dir", None),
             )
 
-        #with timed("Init SD Denoise Img2Img Pipeline"):
-        #    self.denoise = SDDenoiseImg2ImgPipeline(
-        #        cfg.models["img2img_model_id"], device=device, mixed_precision=mp
-        #    )
+        with timed("Init SD Denoise Img2Img Pipeline"):
+            self.denoise = SDDenoiseImg2ImgPipeline(
+                cfg.models["img2img_model_id"], device=device, mixed_precision=mp
+            )
 
         with timed("Init UNet Colorize Pipeline"):
             self.colorize = UNetColorizationPipeline(
