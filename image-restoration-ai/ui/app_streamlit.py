@@ -21,9 +21,9 @@ from streamlit_drawable_canvas import st_canvas
 # -----------------------------
 # UI sizing constants
 # -----------------------------
-PREVIEW_W = 320     # consistent small previews
-OUTPUT_W = 900      # main output size
-FULL_W = 480        # full input objects display size
+PREVIEW_W = 300     # consistent small previews
+OUTPUT_W = 920      # main output size
+FULL_W = 460        # full input objects display size
 
 
 # -----------------------------
@@ -127,8 +127,41 @@ def rgba_from_hex(hex_color: str, opacity: float):
 
 st.set_page_config(
     page_title="Image Restoration & Enhancement",
-    layout="wide"
+    layout="wide",
 )
+
+# Subtle app styling
+st.markdown(
+    """
+    <style>
+      .block-container { padding-top: 1.3rem; padding-bottom: 2rem; }
+      h1, h2, h3 { letter-spacing: -0.3px; }
+      .soft-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 14px;
+          padding: 1.0rem 1.1rem;
+          margin-bottom: 1rem;
+      }
+      .tiny-muted {
+          opacity: 0.7;
+          font-size: 0.9rem;
+      }
+      .section-title {
+          font-size: 1.05rem;
+          font-weight: 600;
+          margin-bottom: 0.35rem;
+      }
+      .hr {
+          height: 1px;
+          background: rgba(255,255,255,0.08);
+          margin: 1.0rem 0 1.2rem 0;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 
 # -----------------------------
 # Load config + enhancer
@@ -178,7 +211,6 @@ def maybe_warmup_superres():
         return
     try:
         img = Image.new("RGB", (128, 128), "gray")
-        # Only warm up if your Swin2SRPipeline supports mode param
         try:
             enhancer.run_superres(img, mode="Crystal clear (pretrained)")
         except TypeError:
@@ -190,7 +222,6 @@ def maybe_warmup_superres():
     st.session_state["_did_superres_warmup"] = True
 
 
-# You can comment these out if you don't want warmups
 maybe_warmup_inpaint()
 maybe_warmup_superres()
 
@@ -199,181 +230,221 @@ maybe_warmup_superres()
 # Header
 # -----------------------------
 
-st.title("Image Restoration & Enhancement (Hugging Face)")
-st.caption("**Mask rule:** White = area to fill/repair, Black = keep unchanged.")
-
-
-# -----------------------------
-# Task selection
-# -----------------------------
-
-task = st.radio(
-    "Task",
-    ["superres", "inpaint", "denoise", "colorize"],
-    index=0,
-    horizontal=True
+st.markdown("## 🧩 Image Restoration & Enhancement")
+st.markdown(
+    "<div class='tiny-muted'>"
+    "Unified UI for <b>Super-Resolution</b>, <b>Inpainting</b>, "
+    "<b>Denoising</b>, and <b>Colorization</b>. "
+    "Mask rule: <b>White</b> = repair region, <b>Black</b> = preserve."
+    "</div>",
+    unsafe_allow_html=True
 )
 
-
-# -----------------------------
-# Inputs row
-# -----------------------------
-
-col_img, col_right = st.columns([1, 1])
-
-with col_img:
-    img_file = st.file_uploader("Input Image", type=["png", "jpg", "jpeg"])
-
-# Load image early
-image = Image.open(img_file).convert("RGB") if img_file else None
-
-
-# --- Safe defaults (important when mask UI is hidden) ---
-mask_source = "draw"
-invert_mask = False
-mask_file = None
-mask_upload = None
-drawn_mask = None
-
-
-# Right column content depends on task
-with col_right:
-    if task == "inpaint":
-        mask_source = st.radio("Mask Source", ["draw", "upload"], horizontal=True)
-        invert_mask = st.checkbox("Invert Mask", value=False)
-
-        if mask_source == "upload":
-            mask_file = st.file_uploader("Upload Mask (optional)", type=["png", "jpg", "jpeg"])
-    elif task == "superres":
-        st.info("No mask needed for super-resolution.")
-    elif task == "denoise":
-        st.info("No mask needed for denoising.")
-    elif task == "colorize":
-        st.info("No mask needed for colorization.")
-
-# Load uploaded mask if any
-mask_upload = Image.open(mask_file) if mask_file else None
+st.markdown("<div class='hr'></div>", unsafe_allow_html=True)
 
 
 # -----------------------------
-# Mode selector for superres
+# Sidebar controls
 # -----------------------------
 
-superres_mode = cfg.defaults.get("superres", {}).get("mode", "Crystal clear (pretrained)")
+with st.sidebar:
+    st.markdown("### Controls")
 
-if task == "superres":
-    superres_mode = st.selectbox(
-        "Super-Resolution Style",
-        ["Crystal clear (pretrained)", "Smooth (fine-tuned)"],
-        index=0 if superres_mode != "Smooth (fine-tuned)" else 1
+    task = st.radio(
+        "Task",
+        ["superres", "inpaint", "denoise", "colorize"],
+        index=0
     )
 
+    st.markdown("#### Input")
+    img_file = st.file_uploader("Input image", type=["png", "jpg", "jpeg"])
 
-# -----------------------------
-# Standard-sized previews (image always, mask only when inpaint)
-# -----------------------------
+    image = Image.open(img_file).convert("RGB") if img_file else None
 
-st.subheader("Input Previews (standard-sized)")
+    # defaults so app never crashes if task changes
+    mask_source = "draw"
+    invert_mask = False
+    mask_file = None
+    mask_upload = None
 
-p1, p2 = st.columns(2)
-
-with p1:
-    if image is not None:
-        st.image(
-            resize_for_preview(image),
-            caption=f"Input preview (orig: {image.size})",
-            width=PREVIEW_W
-        )
-    else:
-        st.write("No image loaded.")
-
-with p2:
     if task == "inpaint":
-        if mask_upload is not None:
+        st.markdown("#### Mask")
+        mask_source = st.radio("Mask source", ["draw", "upload"])
+        invert_mask = st.checkbox("Invert mask", value=False)
+
+        if mask_source == "upload":
+            mask_file = st.file_uploader("Upload mask", type=["png", "jpg", "jpeg"])
+            mask_upload = Image.open(mask_file) if mask_file else None
+
+        st.markdown("#### Brush")
+        brush_size = st.slider("Brush size", 1, 80, 20, 1)
+        brush_color = st.color_picker("Brush color", "#FFFFFF")
+        brush_opacity = st.slider("Brush opacity", 0.1, 1.0, 1.0, 0.05)
+    else:
+        # still define values to avoid NameError
+        brush_size = 20
+        brush_color = "#FFFFFF"
+        brush_opacity = 1.0
+
+    # Superres mode (only relevant when selected)
+    superres_mode = cfg.defaults.get("superres", {}).get("mode", "Crystal clear (pretrained)")
+    if task == "superres":
+        st.markdown("#### Super-Resolution Style")
+        superres_mode = st.selectbox(
+            "Style",
+            ["Crystal clear (pretrained)", "Smooth (fine-tuned)"],
+            index=0 if superres_mode != "Smooth (fine-tuned)" else 1
+        )
+
+    with st.expander("Advanced Settings", expanded=False):
+        prompt = st.text_input(
+            "Prompt",
+            value=cfg.defaults.get("denoise", {}).get("prompt", "")
+        )
+        negative_prompt = st.text_input("Negative Prompt", value="")
+
+        strength = st.slider(
+            "Strength (denoise/colorize)",
+            0.05, 0.9, 0.3, 0.01
+        )
+
+        guidance = st.slider("Guidance Scale", 1.0, 12.0, 6.0, 0.1)
+        steps = st.slider("Inference Steps", 10, 50, 20, 1)
+        seed = st.number_input("Seed (-1 random)", value=-1, step=1)
+
+        use_lora = st.checkbox("Use Inpainting LoRA", value=True)
+        lora_scale = st.slider(
+            "Inpainting LoRA Strength",
+            0.0, 1.5,
+            float(cfg.defaults.get("inpaint", {}).get("lora_scale", 0.7)),
+            0.05
+        )
+
+    # Safe fallbacks if expander never opened
+    if "prompt" not in locals():
+        prompt = ""
+        negative_prompt = ""
+        strength = 0.3
+        guidance = 6.0
+        steps = 20
+        seed = -1
+        use_lora = True
+        lora_scale = 0.7
+
+    st.markdown("---")
+    run_btn = st.button("🚀 Run", use_container_width=True)
+
+    with st.expander("Debug / Utilities", expanded=False):
+        st.write("Device:", getattr(cfg, "device", "unknown"))
+        st.write("CUDA available:", torch.cuda.is_available())
+        if torch.cuda.is_available():
+            st.write("GPU:", torch.cuda.get_device_name(0))
+        if st.button("Clear GPU Cache"):
+            try:
+                torch.cuda.empty_cache()
+                st.success("Cleared CUDA cache.")
+            except Exception as e:
+                st.warning(f"Could not clear cache: {e}")
+
+
+# -----------------------------
+# Main area: previews + canvas + output
+# -----------------------------
+
+# Standard input previews card
+with st.container():
+    st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Input Previews</div>", unsafe_allow_html=True)
+
+    p1, p2 = st.columns(2)
+
+    with p1:
+        if image is not None:
             st.image(
-                resize_for_preview(mask_upload),
-                caption="Uploaded mask preview",
+                resize_for_preview(image),
+                caption=f"Input preview • original size {image.size}",
                 width=PREVIEW_W
             )
         else:
-            st.write("No uploaded mask.")
-    else:
-        st.write("Mask preview hidden (not in inpaint mode).")
+            st.caption("No image loaded.")
+
+    with p2:
+        if task == "inpaint":
+            if mask_upload is not None:
+                st.image(
+                    resize_for_preview(mask_upload),
+                    caption="Uploaded mask preview",
+                    width=PREVIEW_W
+                )
+            else:
+                st.caption("No uploaded mask.")
+        else:
+            st.caption("Mask preview hidden (not in inpaint mode).")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # -----------------------------
-# Brush + draw canvas (ONLY in inpaint)
+# Draw canvas (ONLY in inpaint + draw mode)
 # -----------------------------
 
-if task == "inpaint":
-    st.subheader("Brush Settings")
+drawn_mask = None
 
-    b1, b2, b3 = st.columns([1, 1, 1])
-
-    with b1:
-        brush_size = st.slider("Brush size", 1, 80, 20, 1)
-
-    with b2:
-        brush_color = st.color_picker("Brush color", "#FFFFFF")
-
-    with b3:
-        brush_opacity = st.slider("Brush opacity", 0.1, 1.0, 1.0, 0.05)
+if task == "inpaint" and image is not None and mask_source == "draw":
+    st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Draw Mask (full image size)</div>", unsafe_allow_html=True)
+    st.caption("Your faded image is used as the background. White strokes define the repair area.")
 
     stroke_rgba = rgba_from_hex(brush_color, brush_opacity)
+    w, h = image.size
+    faded = make_faded_background(image)
 
-    # -----------------------------
-    # Draw mask section
-    # Canvas on its own row, sized to the image
-    # -----------------------------
-    if image is not None and mask_source == "draw":
-        st.subheader("Draw Mask (full image size)")
+    canvas_result = st_canvas(
+        fill_color="rgba(255,255,255,0)",
+        stroke_width=int(brush_size),
+        stroke_color=stroke_rgba,
+        background_image=faded,  # assuming community fix works
+        update_streamlit=True,
+        height=h,
+        width=w,
+        drawing_mode="freedraw",
+        key="mask_canvas",
+    )
 
-        w, h = image.size
-        faded = make_faded_background(image)
+    if canvas_result.image_data is not None:
+        m_full = mask_from_canvas_rgba(canvas_result.image_data.astype(np.uint8))
+        if m_full is not None:
+            drawn_mask = normalize_mask(m_full, image.size)
 
-        canvas_result = st_canvas(
-            fill_color="rgba(255,255,255,0)",   # transparent fill
-            stroke_width=int(brush_size),
-            stroke_color=stroke_rgba,
-            background_image=faded,             # assuming your community fix works
-            update_streamlit=True,
-            height=h,
-            width=w,
-            drawing_mode="freedraw",
-            key="mask_canvas",
-        )
-
-        if canvas_result.image_data is not None:
-            m_full = mask_from_canvas_rgba(canvas_result.image_data.astype(np.uint8))
-            if m_full is not None:
-                drawn_mask = normalize_mask(m_full, image.size)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # -----------------------------
 # Mask preview (ONLY in inpaint)
 # -----------------------------
 
-if task == "inpaint":
-    st.subheader("Mask Preview (final binary)")
+if task == "inpaint" and image is not None:
+    with st.container():
+        st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Mask Preview (final binary)</div>", unsafe_allow_html=True)
 
-    preview_btn = st.button("Update Mask Preview")
+        preview_btn = st.button("Update Mask Preview")
 
-    if "mask_preview" not in st.session_state:
-        st.session_state["mask_preview"] = None
+        if "mask_preview" not in st.session_state:
+            st.session_state["mask_preview"] = None
 
-    if preview_btn and image is not None:
-        m = get_active_mask(
-            image=image,
-            mask_source=mask_source,
-            mask_upload=mask_upload,
-            drawn_mask=drawn_mask,
-            invert=invert_mask
-        )
-        if m is None:
-            m = Image.new("L", image.size, 0)
-        st.session_state["mask_preview"] = m
+        if preview_btn:
+            m = get_active_mask(
+                image=image,
+                mask_source=mask_source,
+                mask_upload=mask_upload,
+                drawn_mask=drawn_mask,
+                invert=invert_mask
+            )
+            if m is None:
+                m = Image.new("L", image.size, 0)
+            st.session_state["mask_preview"] = m
 
-    if image is not None:
         show_mask = st.session_state["mask_preview"]
         if show_mask is None:
             show_mask = Image.new("L", image.size, 0)
@@ -384,53 +455,12 @@ if task == "inpaint":
             width=PREVIEW_W
         )
 
-
-# -----------------------------
-# Advanced settings
-# -----------------------------
-
-with st.expander("Advanced Settings", expanded=False):
-    # Prompts apply to SD tasks (inpaint/denoise/colorize)
-    prompt = st.text_input(
-        "Prompt",
-        value=cfg.defaults.get("denoise", {}).get("prompt", "")
-    )
-    negative_prompt = st.text_input("Negative Prompt", value="")
-
-    strength = st.slider(
-        "Strength (denoise/colorize only)",
-        0.05, 0.9, 0.3, 0.01
-    )
-
-    guidance = st.slider("Guidance Scale", 1.0, 12.0, 6.0, 0.1)
-    steps = st.slider("Inference Steps", 10, 50, 20, 1)
-    seed = st.number_input("Seed (-1 random)", value=-1, step=1)
-
-    use_lora = st.checkbox("Use Inpainting LoRA (if available)", value=True)
-    lora_scale = st.slider(
-        "Inpainting LoRA Strength",
-        0.0, 1.5,
-        float(cfg.defaults.get("inpaint", {}).get("lora_scale", 0.7)),
-        0.05
-    )
-
-# Safeguards if expander not opened
-if "prompt" not in locals():
-    prompt = ""
-    negative_prompt = ""
-    strength = 0.3
-    guidance = 6.0
-    steps = 20
-    seed = -1
-    use_lora = True
-    lora_scale = 0.7
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # -----------------------------
-# Run
+# Run output
 # -----------------------------
-
-run_btn = st.button("Run")
 
 if run_btn:
     if image is None:
@@ -445,22 +475,20 @@ if run_btn:
         "seed": int(seed) if seed is not None and seed >= 0 else None,
     }
 
-    # --- SUPER-RESOLUTION ---
+    # Output card
+    st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Output</div>", unsafe_allow_html=True)
+
     if task == "superres":
         with st.spinner("Running Swin2SR x4..."):
             try:
                 out = enhancer.run_superres(image, mode=superres_mode)
             except TypeError:
-                # backward-compatible if your pipeline doesn't accept mode yet
                 out = enhancer.run_superres(image)
 
-        st.subheader("Output (Super-Resolution x4)")
-        st.image(out, width=OUTPUT_W)
+        st.image(out, caption="Super-Resolution x4", width=OUTPUT_W)
 
-    # --- INPAINT ---
     elif task == "inpaint":
-        st.write("Resolving mask...")
-
         m = get_active_mask(
             image=image,
             mask_source=mask_source,
@@ -468,8 +496,10 @@ if run_btn:
             drawn_mask=drawn_mask,
             invert=invert_mask
         )
+
         if m is None:
             st.error("Mask required for inpainting.")
+            st.markdown("</div>", unsafe_allow_html=True)
             st.stop()
 
         inpaint_kwargs = {
@@ -481,62 +511,41 @@ if run_btn:
         with st.spinner("Running inpaint..."):
             out = enhancer.run_inpaint(image, m, **inpaint_kwargs)
 
-        st.subheader("Output (Inpainting)")
-        st.image(out, width=OUTPUT_W)
+        st.image(out, caption="Inpainting result", width=OUTPUT_W)
 
-    # --- Others (placeholders) ---
     elif task == "denoise":
         st.info("Denoise is not wired in this UI block yet.")
         st.image(image, caption="Input", width=FULL_W)
 
-    # --- COLORIZE ---
     elif task == "colorize":
         with st.spinner("Running colorization..."):
             out = enhancer.run_colorize(image)
-        st.subheader("Output")
-        st.image(out, width=512)
+
+        st.image(out, caption="Colorization result", width=512)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # -----------------------------
-# Full input objects (original sizes)
+# Full input objects (optional reference)
 # -----------------------------
 
-st.write("---")
-st.subheader("Full Input Objects (original sizes)")
+with st.expander("Full Input Objects (original sizes)", expanded=False):
+    c1, c2 = st.columns(2)
 
-c1, c2 = st.columns(2)
-
-with c1:
-    if image is not None:
-        st.image(image, caption=f"Image: {image.size}", width=FULL_W)
-    else:
-        st.write("No image loaded.")
-
-with c2:
-    if task == "inpaint":
-        if mask_upload is not None:
-            st.image(mask_upload, caption=f"Uploaded mask: {mask_upload.size}", width=FULL_W)
-        elif drawn_mask is not None:
-            st.image(drawn_mask, caption=f"Drawn mask: {drawn_mask.size}", width=FULL_W)
+    with c1:
+        if image is not None:
+            st.image(image, caption=f"Image: {image.size}", width=FULL_W)
         else:
-            st.write("No mask loaded/drawn yet.")
-    else:
-        st.write("Mask display hidden (not in inpaint mode).")
+            st.caption("No image loaded.")
 
-
-# -----------------------------
-# Debug / utilities
-# -----------------------------
-
-with st.expander("Debug / Utilities", expanded=False):
-    st.write("Device:", getattr(cfg, "device", "unknown"))
-    st.write("CUDA available:", torch.cuda.is_available())
-    if torch.cuda.is_available():
-        st.write("GPU:", torch.cuda.get_device_name(0))
-
-    if st.button("Clear GPU Cache"):
-        try:
-            torch.cuda.empty_cache()
-            st.success("Cleared CUDA cache.")
-        except Exception as e:
-            st.warning(f"Could not clear cache: {e}")
+    with c2:
+        if task == "inpaint":
+            if mask_upload is not None:
+                st.image(mask_upload, caption=f"Uploaded mask: {mask_upload.size}", width=FULL_W)
+            elif drawn_mask is not None:
+                st.image(drawn_mask, caption=f"Drawn mask: {drawn_mask.size}", width=FULL_W)
+            else:
+                st.caption("No mask loaded/drawn yet.")
+        else:
+            st.caption("Mask display hidden (not in inpaint mode).")
