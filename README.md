@@ -56,7 +56,7 @@ The inpainting component aimed to restore missing or damaged regions in a visual
 
 To test parameter-efficient improvement, LoRA adapters were inserted into key attention projections (to_q, to_k, to_v, to_out.0). The base UNet, VAE, and text encoder remained frozen. Core training settings were: 512×512 images, batch size 2, ~2000 steps, learning rate 1e-4, rank 8 with alpha 8, gradient clipping 1.0, and fp16 mixed precision.
 
-<img width="30%" alt="image" src="https://github.com/IanRebmann/Computer_Vision_Project/blob/main/superres.png">
+<img width="30%" alt="image" src="https://github.com/IanRebmann/Computer_Vision_Project/blob/main/inpainting.png">
 
 # Denoising
 
