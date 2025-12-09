@@ -23,14 +23,14 @@ AAI-521 Final Team Project
 
 ```
 ├── README.md                             # Project documentation (this file)
-├────── image-restoration-ai                # Project documentation (this file)
+├────── image-restoration-ai                # Project folder
 ├────────── configs                         # yaml file for runtime configuration
 ├────────── lora_inpainting                 # inpainting tensor weights
-├────────── src                             # Project documentation (this file)
-├───────────── pipelines                             # Project documentation (this file)
+├────────── src                             # Models loading and inferencing modules
+├───────────── pipelines                             # individual model pipelines (superres, colorization, inpainting, denoising)
 ├────────── swin2sr_div2k_finetuned_x4_1000steps # superres tensor weights
 ├────────── ui                              # streamlit ui (executable)
-├────────── Improved_inpainting.ipynb       #
+├────────── Improved_inpainting.ipynb       # fine-tuning inpainting jupyter notebook
 ├── requirements.txt                        # python libs used for the project
 └── .gitignore                            # Ignored files for Git
 ```
