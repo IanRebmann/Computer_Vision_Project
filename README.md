@@ -82,8 +82,8 @@ The colorization pipeline uses a Hugging Face pretrained model with a ResNet enc
         </a>
     </td>
     <td>
-        <a href="">
-          <img src="" width="100" height="100" alt="Tadhbir Singh"/><br />
+        <a href="https://github.com/gHOSTSINGHAH">
+          <img src="https://github.com/gHOSTSINGHAH.png" width="100" height="100" alt="Tadhbir Singh"/><br />
           <sub><b>Tadhbir Singh</b></sub>
         </a>
     </td>
