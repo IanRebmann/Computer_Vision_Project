@@ -48,7 +48,7 @@ The super-resolution pipeline uses the 4× real-world Swin2SR checkpoint caidas/
 
 Starting from the pretrained checkpoint, we performed compact fine-tuning on random DIV2K patches using L1 reconstruction loss between predicted and ground-truth HR patches. The intent was to reduce overly smooth outputs on very blurry or out-of-distribution images.
 
-<img width="30%" alt="image" src="https://www.sandiego.edu/assets/global/images/logos/logo-usd.png">
+<img width="30%" alt="image" src="https://github.com/IanRebmann/Computer_Vision_Project/blob/main/superres.png">
 
 # Inpainting
 
@@ -56,7 +56,7 @@ The inpainting component aimed to restore missing or damaged regions in a visual
 
 To test parameter-efficient improvement, LoRA adapters were inserted into key attention projections (to_q, to_k, to_v, to_out.0). The base UNet, VAE, and text encoder remained frozen. Core training settings were: 512×512 images, batch size 2, ~2000 steps, learning rate 1e-4, rank 8 with alpha 8, gradient clipping 1.0, and fp16 mixed precision.
 
-<img width="30%" alt="image" src="https://www.sandiego.edu/assets/global/images/logos/logo-usd.png">
+<img width="30%" alt="image" src="https://github.com/IanRebmann/Computer_Vision_Project/blob/main/superres.png">
 
 # Denoising
 
