@@ -66,6 +66,8 @@ The denoising component was implemented using a Stable Diffusion Img2Img baselin
 
 The colorization pipeline uses a Hugging Face pretrained model with a ResNet encoder and UNet decoder. Images are converted from RGB/BGR into grayscale inputs with pixel values scaled to 0–1. The model performs colorization in the Lab color space, using the L (lightness) channel as input and predicting the a (green–red) and b (yellow–blue) channels. This framework reduces prediction complexity by requiring two chrominance channels instead of three RGB channels. The predicted a and b channels are returned in a normalized range (0–1), requiring reconstruction into valid Lab channel values before conversion back to RGB/BGR. We used the author’s normalization utility while implementing the remaining preprocessing and Lab→RGB conversion using OpenCV rather than Kornia.
 
+https://huggingface.co/ayushshah/imagecolorization
+
 <img align="center" width="30%" alt="image" src="https://github.com/IanRebmann/Computer_Vision_Project/blob/main/colorized.png">
 
 ## Contributors
